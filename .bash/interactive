@@ -1,0 +1,244 @@
+#! bash
+
+
+
+##################
+# Terminal setup #
+##################
+
+# Check for unsupported TERM variable
+if ! tput init &> /dev/null; then
+    echo "Warning! TERM=$TERM unsupported, using TERM=xterm"
+    export TERM=xterm
+fi
+
+# Disable CTRL-s / CTRL-q
+stty -ixon
+
+# Sets colour scheme in apps like Vim
+export COLORFGBG="15;0"
+
+
+
+#############
+# Fancy PS1 #
+#############
+
+# Revision control status for git, hg, svn
+
+[ -r /usr/share/git/completion/git-prompt.sh ] && source /usr/share/git/completion/git-prompt.sh
+function my_git_ps1 {
+    find_up_recurse .git || return
+    GIT_PS1_SHOWDIRTYSTATE=1 \
+    GIT_PS1_SHOWUNTRACKEDFILES=1 \
+    __git_ps1 2> /dev/null
+}
+
+function my_hg_ps1 {
+    find_up_recurse .hg || return
+    b="$(hg branch 2>/dev/null)" || return
+    s="$(hg status | cut -c1 | sort -u | tr -d " \n")"
+    echo -n " ($b"
+    [ -n "$s" ] && echo -n " $s"
+    echo -n ")"
+}
+
+function my_svn_ps1 {
+    find_up_recurse .svn || return
+    s="$(svn status --ignore-externals 2>/dev/null | cut -c1 | sort -u | tr -d " \n")"
+    [ -z "$s" ] && return
+    echo -n " ($s)"
+}
+
+# Two line prompt
+
+PS1=''
+PS1="$PS1"'\[\033[01;31m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]'
+PS1="$PS1"'\[\033[01;36m\]$(my_git_ps1 ; my_hg_ps1 ; my_svn_ps1)\[\033[00m\]'
+PS1="$PS1"'\n\$ '
+
+
+
+################
+# xterm titles #
+################
+
+# hostname:workingdir
+DISPLAY_TITLE_COMMAND='echo -ne "\033]0;$(hostname| cut -d. -f1):${PWD/$HOME/~}\007"'
+
+if [[ "$TERM" =~ ^xterm ]]; then
+    PROMPT_COMMAND="$DISPLAY_TITLE_COMMAND"
+fi
+
+if [[ "$TERM" =~ ^screen ]]; then
+    PROMPT_COMMAND="${DISPLAY_TITLE_COMMAND}; echo -ne '\033k\033\\'"
+fi
+
+
+
+#################################
+# Display return codes on error #
+#################################
+
+function print_exit_code {
+    _exit_msg="\033[01;33mexit code: $?\033[00m"
+    if [ -z "${BASH_SOURCE[1]}" ]; then
+        echo -e "$_exit_msg"
+    fi
+    unset _exit_msg
+}
+trap print_exit_code ERR
+
+
+
+################
+# bash options #
+################
+
+# Bash should check the terminal size after every command terminates
+shopt -s checkwinsize
+
+# Don't attempt to tab-complete an empty line
+shopt -s no_empty_cmd_completion
+
+# Prevent overwriting existing files on stdout redirection
+set -o noclobber
+
+# Better history
+shopt -s histappend
+shopt -s cmdhist
+export HISTCONTROL="erasedups:ignoredups:ignorespace"
+export HISTSIZE="100000"
+export HISTTIMEFORMAT="%F %T "
+
+
+
+##########################
+# ls aliases and colours #
+##########################
+
+# GNU ls colours
+eval $(TERM=xterm dircolors 2> /dev/null)
+
+# BSD ls colours
+export LSCOLORS="ExFxCxDxBxEGEDABAGACAD"
+
+# Lets find the ls
+if ls --color=auto -v &> /dev/null; then
+    alias ls='ls --color=auto -v'
+elif gls --color=auto -v &> /dev/null; then
+    alias ls='gls --color=auto -v'
+elif ls -G &> /dev/null; then
+    alias ls='ls -G'
+else
+    alias ls='ls -F'
+fi
+alias ll='ls -hlF'
+alias la='ls -ha'
+alias  l='ls -halF'
+
+
+
+##############
+# ps aliases #
+##############
+
+alias _psresources='ps -wAo pid,user,%cpu,%mem,stat,start,time,args'
+if [ "$(uname)" = "Linux" ]; then
+    alias pscpu='_psresources --sort -%cpu|less -S'
+    alias psmem='_psresources --sort -%mem|less -S'
+    alias pstree='ps --forest -weo pid,user:16,args --sort start_time|less -S'
+    alias pstime='ps -wAo pid,user,lstart,args --sort start_time|less -S'
+else
+    alias pscpu='_psresources -r|less -S'
+    alias psmem='_psresources -m|less -S'
+    alias pstime='ps -wAo pid,user,lstart,args|less -S'
+fi
+
+
+##################
+# Useful aliases #
+##################
+
+alias f='find . -iname'
+alias webshare='python3 -mhttp.server'
+alias less='less -R'
+if echo x | grep -q --color=auto x &> /dev/null; then
+    alias grep='grep --color=auto'
+fi
+alias scp='scp -o ControlPath=none'
+alias bc='bc -ql'
+alias watch='watch -n1'
+alias sudo='sudo ' # ability to use aliases with sudo
+alias sudosu='sudo su -l -s /bin/bash'
+
+if ! which pbcopy &> /dev/null; then
+    alias pbcopy='xsel --clipboard --input'
+    alias pbcopym='xsel --input'
+    alias pbpaste='xsel --clipboard --output'
+    alias pbpastem='xsel --output'
+fi
+
+# Super man!
+#  Colourful headings
+#  Terminal title
+function man {
+    echo -ne "\033]0;man $@\007"
+
+    env \
+        LESS_TERMCAP_md=$'\E[01;38;5;74m' \
+        LESS_TERMCAP_me=$'\E[0m' \
+        LESS_TERMCAP_us=$'\E[04;38;5;146m' \
+        LESS_TERMCAP_ue=$'\E[0m' \
+    man --encoding ascii "$@"
+}
+
+# Usage: mcd somedir
+# Creates the directory if it doesn't exist, and changes into it
+function mcd {
+    mkdir -p "${1}" &&
+    cd "${1}"
+}
+
+# Usage: editf somefile
+# Does a recursive search of the current directory for somefile, then edits it
+function editf {
+    find . -iname "${1}" -exec $EDITORBG '{}' +
+}
+
+# Usage: edit somefile [otherfiles ...]
+function edit {
+    $EDITORBG "$@"
+}
+
+# Sets the nice and ionice priorities for the current shell to the lowest values
+function slowshell {
+    ionice -c 3 -p $$
+    renice -n 19 -p $$
+}
+
+# SSH to an unknown host and print the new known_hosts entry
+function ssh_new {
+    local new_known_hosts_file="$(mktemp)"
+    ssh -o UserKnownHostsFile="$new_known_hosts_file" "$@" echo Connection ok
+    cat "$new_known_hosts_file"
+    rm -f "$new_known_hosts_file"
+}
+
+# SSH without verifying host key
+function ssh_unsafe {
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$@"
+}
+
+
+
+###########
+# The end #
+###########
+
+# Local customisations
+[ -r "${HOME}/.bash/interactive_local" ] && source "${HOME}/.bash/interactive_local"
+
+# Load bash completion if available
+[ -r "/etc/bash_completion" ] && source "/etc/bash_completion"
+

@@ -1,0 +1,40 @@
+[user]
+	name = Edmund Tse
+	email = edmund@outlook.com
+[core]
+	pager = less -+F -+X
+	excludesfile = ~/.gitignore_global
+[color]
+	ui = auto
+[log]
+	decorate = full
+[diff]
+	renamelimit = 10000
+	renames = copies
+	context = 5
+	algorithm = minimal
+[push]
+	default = upstream
+[merge]
+	defaultToUpstream = true
+[transfer]
+	fsckObjects = true
+[alias]
+	graphlog = log --graph --pretty=format:'%C(bold black)%h%Creset %C(bold red)%ad %C(bold blue)%s%Creset %C(bold yellow)%d%Creset %C(bold black)<%an>%Creset' --date=short
+	ci = commit
+	co = checkout
+	st = status
+	di = diff
+	diw = diff --color-words
+	dic = diff --cached
+	dicw = diff --cached --color-words
+	ff = merge --ff-only
+	ffpull = pull --ff-only
+	lso = ls-files -X .gitignore -o
+	pushn = !git push origin --set-upstream "$(git rev-parse --abbrev-ref HEAD)":"$(git rev-parse --abbrev-ref HEAD)"
+	pushd = !git push origin --delete "$(git rev-parse --abbrev-ref HEAD)"
+	pushf = push --force-with-lease
+	cherry-pick = cherry-pick -x
+	branches-to-kill = !git branch --merged origin/master|grep -v master|xargs -n1 echo git branch -d
+	mergediff = !git checkout --quiet --detach HEAD && git merge --no-edit origin/master && git diff -C10 -M10 origin/master && git checkout --quiet -
+	expire-prune = !git reflog expire --expire=now --all && git gc --prune=now

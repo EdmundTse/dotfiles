@@ -1,0 +1,45 @@
+#! bash
+
+# This file sets up the environment correctly. It gets run for every shell,
+# so it must be fast. Also, starting a shell within a shell shouldn't change
+# the environment. The path manipulation functions are useful for this.
+
+# Root gets the default umask. Files created by my user are only rwx by user/group
+if [ "$(id -un)" = "root" ]; then
+    umask 0022
+else
+    umask 0007
+fi
+
+# General environment settings
+export PAGER="less"
+export PYTHONSTARTUP="${HOME}/.pythonrc.py"
+export EMAIL="Edmund Tse <edmund@outlook.com>"
+
+# Editor settings
+if emacsclient --version &> /dev/null; then
+    export ALTERNATE_EDITOR="vim"
+    export EDITOR="emacsclient --tty"
+
+    if [[ "$TERM" == screen* ]]; then
+        export EDITORBG="$EDITOR"
+    else
+        export EDITORBG="emacsclient --create-frame --no-wait"
+    fi
+else
+    export EDITOR="vim"
+    export EDITORBG="vim"
+fi
+
+source "${HOME}/.bash/functions"
+
+pathprepend "${HOME}/bin"
+
+# Pick up SSH agent socket in case it isn't set automatically
+if [ -z "$SSH_AUTH_SOCK" ]; then
+    export SSH_AUTH_SOCK="/run/user/$(id -u)/keyring/ssh"
+fi
+
+# Load local environment settings
+[ -r "${HOME}/.bash/environment_local" ] && source "${HOME}/.bash/environment_local"
+

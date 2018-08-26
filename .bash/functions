@@ -1,0 +1,68 @@
+#! bash
+
+# Useful bash functions. This is sourced by the environment file.
+# These are available to scripts, but you shouldn't use them in scripts if you
+# want them to be portable.
+
+
+# Usage: pathremove /path/to/bin [PATH]
+# Eg, to remove ~/bin from $PATH
+#     pathremove ~/bin PATH
+function pathremove {
+    local IFS=':'
+    local NEWPATH
+    local DIR
+    local PATHVARIABLE=${2:-PATH}
+    for DIR in ${!PATHVARIABLE} ; do
+        if [ "${DIR}" != "${1}" ] ; then
+            NEWPATH="${NEWPATH:+${NEWPATH}:}${DIR}"
+        fi
+    done
+    export ${PATHVARIABLE}="${NEWPATH}"
+}
+
+# Usage: pathprepend /path/to/bin [PATH]
+# Eg, to prepend ~/bin to $PATH
+#     pathprepend ~/bin PATH
+function pathprepend {
+    pathremove "${1}" "${2}"
+    [ -d "${1}" ] || return
+    local PATHVARIABLE="${2:-PATH}"
+    export ${PATHVARIABLE}="${1}${!PATHVARIABLE:+:${!PATHVARIABLE}}"
+}
+
+# Usage: pathappend /path/to/bin [PATH]
+# Eg, to append ~/bin to $PATH
+#     pathappend ~/bin PATH
+function pathappend {
+    pathremove "${1}" "${2}"
+    [ -d "${1}" ] || return
+    local PATHVARIABLE=${2:-PATH}
+    export $PATHVARIABLE="${!PATHVARIABLE:+${!PATHVARIABLE}:}${1}"
+}
+
+# Usage: is_function something
+# Check if a function exists
+function is_function {
+    declare -Ff "$1" > /dev/null
+}
+
+# Usage: find_up_recurse somefile
+# Check if a file named somefile exists in this directory or any parent
+function find_up_recurse {
+    d="$1"
+    pushd . > /dev/null
+    while [ "$PWD" != "/" ]; do
+        if [ -e "$d" ]; then
+            popd > /dev/null
+            return 0
+        fi
+        cd ..
+    done
+    popd > /dev/null
+    return 1
+}
+
+# Load local functions
+[ -r "${HOME}/.bash/functions_local" ] && source "${HOME}/.bash/functions_local"
+
